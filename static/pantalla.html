@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>TuPlatilloFue — Pantalla</title>
+<style>
+  :root { color-scheme: dark; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; color: #fff;
+               font-family: 'Segoe UI', system-ui, sans-serif; }
+
+  /* ── WATERMARK ── */
+  #watermark {
+    position: fixed; bottom: 70px; right: 24px; z-index: 500;
+    pointer-events: none; opacity: .45;
+    filter: drop-shadow(0 0 8px #C4123055) sepia(.3) saturate(1.4);
+    width: 160px;
+  }
+
+  /* ── IDLE SLIDESHOW ── */
+  #idle {
+    width: 100%; height: 100%; position: relative; overflow: hidden;
+    background: #0a0a0f;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; opacity: 0;
+    transition: opacity .8s ease;
+  }
+  .slide.active { opacity: 1; }
+
+  /* dish slide */
+  .slide-dish { flex-direction: row; }
+  .slide-dish .s-img {
+    flex: 1; overflow: hidden;
+  }
+  .slide-dish .s-img img {
+    width: 100%; height: 100%; object-fit: cover; filter: brightness(.7);
+  }
+  .slide-dish .s-info {
+    width: 380px; flex-shrink: 0;
+    background: linear-gradient(180deg,#0d0f1a,#111320);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 48px 36px; gap: 16px;
+    border-left: 1px solid #fff1;
+  }
+  .slide-dish .s-tag {
+    font-size: 12px; font-weight: 700; letter-spacing: .15em;
+    text-transform: uppercase; color: #facc1588;
+  }
+  .slide-dish .s-name {
+    font-size: 38px; font-weight: 900; color: #fff; line-height: 1.1;
+  }
+  .slide-dish .s-desc {
+    font-size: 15px; color: #ffffff88; line-height: 1.6;
+  }
+  .slide-dish .s-divider {
+    width: 50px; height: 3px; background: #facc15; border-radius: 2px;
+  }
+
+  /* brand slide */
+  .slide-brand { background: #000; }
+  .slide-brand img, .slide-brand video {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+  .slide-brand .s-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, #0008 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* horoscope slide */
+  .slide-horoscope {
+    background: linear-gradient(135deg,#0d0f1a,#1a1030);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 60px; gap: 24px; text-align: center;
+  }
+  .horo-sign { font-size: 72px; }
+  .horo-name {
+    font-size: 22px; font-weight: 700; letter-spacing: .15em;
+    text-transform: uppercase; color: #facc15;
+  }
+  .horo-text { font-size: 24px; color: #fff; line-height: 1.6; max-width: 800px; }
+  .horo-date { font-size: 13px; color: #ffffff44; margin-top: 8px; }
+
+  /* dots */
+  #slide-dots {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 10;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #fff4; transition: background .3s;
+  }
+  .dot.active { background: #facc15; }
+
+  /* empty fallback */
+  #idle-empty {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+  }
+  #idle-empty .logo { font-size: 72px; opacity: .08; }
+  #idle-empty p { font-size: 22px; color: #ffffff22; letter-spacing: .05em; }
+
+  /* ── DETECTION STATE ── */
+  #detect {
+    width: 100%; height: 100%; display: none;
+    animation: fadeIn .4s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:scale(.97) } to { opacity:1; transform:scale(1) } }
+
+  .det-layout {
+    width: 100%; height: 100%; display: flex;
+  }
+
+  /* left: dish image fullscreen */
+  .det-dish-wrap {
+    flex: 1; position: relative; overflow: hidden; background: #0a0a0f;
+  }
+  #dish-img {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+  .no-img {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg,#1a0a2e,#16213e,#0f3460);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 180px; opacity: .3;
+  }
+
+  /* right: info panel */
+  .info-panel {
+    width: 400px; flex-shrink: 0;
+    background: linear-gradient(180deg,#0d0f1a,#111320);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 40px 36px; gap: 20px;
+    border-left: 1px solid #fff1;
+  }
+
+  /* customer photo */
+  .cust-photo-wrap {
+    display: flex; align-items: center; gap: 16px;
+  }
+  #cust-photo {
+    width: 90px; height: 90px; border-radius: 50%;
+    object-fit: cover; border: 3px solid #facc15;
+    flex-shrink: 0; display: none;
+  }
+  .cust-text {}
+  .greeting {
+    font-size: 13px; font-weight: 700; letter-spacing: .15em;
+    text-transform: uppercase; color: #facc15; opacity: .9;
+  }
+  .customer-name {
+    font-size: 36px; font-weight: 900; line-height: 1.1; color: #fff;
+  }
+
+  .divider { width: 50px; height: 3px; background: #facc15; border-radius: 2px; }
+
+  .dish-label {
+    font-size: 12px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: #ffffff44;
+  }
+  .dish-name { font-size: 32px; font-weight: 800; color: #facc15; line-height: 1.2; }
+  .dish-desc { font-size: 14px; color: #ffffff88; line-height: 1.6; }
+  .cta {
+    background: #facc15; color: #0a0a0f;
+    border-radius: 10px; padding: 14px 20px;
+    font-size: 15px; font-weight: 900; text-align: center;
+  }
+
+  /* demo badge */
+  #demo-badge {
+    position: absolute; top: 18px; left: 18px; z-index: 100;
+    background: #facc1522; border: 1px solid #facc1566;
+    color: #facc15; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 20px;
+    display: none; align-items: center; gap: 6px;
+    backdrop-filter: blur(4px);
+  }
+  #demo-badge .dot-pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #facc15;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.4; transform:scale(.7); }
+  }
+
+  /* progress bar */
+  .progress-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 4px; background: #fff1;
+  }
+  .progress-fill {
+    height: 100%; background: #facc15;
+    animation: shrink 8s linear forwards; transform-origin: left;
+  }
+  @keyframes shrink { from{width:100%} to{width:0%} }
+</style>
+</head>
+<body>
+
+<img id="watermark" src="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=375,fit=crop,q=95/YD0waQG7P9Irok9z/logo-bueno_beatricita-AQEZGo62yqu9rRZb.png" alt="">
+
+<div id="idle">
+  <div id="idle-empty" style="display:none">
+    <div class="logo">🍽️</div>
+    <p>Esperando cliente...</p>
+  </div>
+  <div id="slides"></div>
+  <div id="slide-dots"></div>
+</div>
+
+<div id="detect">
+  <div id="demo-badge"><span class="dot-pulse"></span>Cliente detectado</div>
+  <div class="det-layout">
+    <div class="det-dish-wrap">
+      <img id="dish-img" src="" alt="" onerror="this.style.display='none';document.getElementById('no-img').style.display='flex'">
+      <div class="no-img" id="no-img" style="display:none">🍽️</div>
+    </div>
+    <div class="info-panel">
+      <div class="cust-photo-wrap">
+        <img id="cust-photo" src="" alt="">
+        <div class="cust-text">
+          <div class="greeting">¡Bienvenido de vuelta!</div>
+          <div class="customer-name" id="cust-name">—</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="dish-label">Tu último platillo fue</div>
+      <div class="dish-name" id="dish-name">—</div>
+      <div class="dish-desc" id="dish-desc"></div>
+      <div class="cta">¿Lo volvemos a preparar? 😋</div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+</div>
+
+<script>
+  const SIGN_EMOJI = {
+    aries:"♈",tauro:"♉",geminis:"♊",cancer:"♋",leo:"♌",virgo:"♍",
+    libra:"♎",escorpio:"♏",sagitario:"♐",capricornio:"♑",acuario:"♒",piscis:"♓"
+  };
+
+  let lastDetectedAt = null;
+  let lastPlaylistVersion = null;
+  let slides = [], plIdx = 0, plTimer = null, plActive = false;
+  let playlist = [];
+
+  // ── PLAYLIST PLAYER ────────────────────────────────────────────────────────
+  async function loadPlaylist() {
+    playlist = await fetch("/api/playlist").then(r=>r.json()).catch(()=>[]);
+    const horoMap = await fetch("/api/horoscopes").then(r=>r.json()).catch(()=>({}));
+
+    const container = document.getElementById("slides");
+    const dots = document.getElementById("slide-dots");
+    container.innerHTML = ""; dots.innerHTML = "";
+    slides = [];
+
+    // Build slides: expand horoscope blocks into individual sign slides inline
+    const allItems = [];
+    for (const item of playlist) {
+      if (item.type === "horoscope") {
+        const signs = item.signs ? JSON.parse(item.signs) : [];
+        for (const sign of signs) {
+          const horo = horoMap[sign];
+          if (horo && horo.text) {
+            allItems.push({ kind: "horoscope", sign, text: horo.text, duration: item.duration || 8 });
+          }
+        }
+      } else {
+        allItems.push({ kind: "playlist", item });
+      }
+    }
+
+    if (allItems.length === 0) {
+      document.getElementById("idle-empty").style.display = "flex";
+      return;
+    }
+
+    allItems.forEach((entry, i) => {
+      const el = document.createElement("div");
+      if (entry.kind === "playlist") {
+        const item = entry.item;
+        const labelHtml = (item.show_text && item.label)
+          ? `<div style="position:absolute;bottom:40px;left:48px;font-size:28px;font-weight:900;color:#fff;text-shadow:0 2px 8px #000a">${item.label}</div>`
+          : "";
+        if (item.type === "image") {
+          el.className = "slide slide-brand";
+          el.innerHTML = `<img src="/uploads/playlist/${encodeURIComponent(item.filename)}" alt="">
+            <div class="s-overlay"></div>${labelHtml}`;
+        } else {
+          el.className = "slide slide-brand";
+          el.innerHTML = `<video id="pl-vid-${i}" src="/uploads/playlist/${encodeURIComponent(item.filename)}"
+            muted playsinline preload="auto"
+            style="width:100%;height:100%;object-fit:contain;background:#000"></video>
+            <div class="s-overlay"></div>${labelHtml}`;
+        }
+      } else {
+        // horoscope slide
+        el.className = "slide slide-horoscope";
+        const name = entry.sign.charAt(0).toUpperCase() + entry.sign.slice(1);
+        const emoji = SIGN_EMOJI[entry.sign] || "⭐";
+        const today = new Date().toLocaleDateString("es-MX", {year:"numeric",month:"long",day:"numeric"});
+        el.innerHTML = `
+          <div class="horo-sign">${emoji}</div>
+          <div class="horo-name">${name}</div>
+          <div class="horo-text">${entry.text}</div>
+          <div class="horo-date">${today}</div>`;
+      }
+      el.dataset.idx = i;
+      container.appendChild(el);
+      slides.push(entry);
+
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dots.appendChild(dot);
+    });
+
+    plIdx = 0;
+    playSlide(0);
+  }
+
+  function getAllSlides() { return document.querySelectorAll("#slides .slide"); }
+  function getAllDots()   { return document.querySelectorAll("#slide-dots .dot"); }
+
+  function playSlide(i) {
+    if (!plActive) return;
+    clearTimeout(plTimer);
+    // stop all videos
+    document.querySelectorAll("#slides video").forEach(v => { v.pause(); v.currentTime = 0; });
+
+    const els = getAllSlides(), dots = getAllDots();
+    els.forEach((e,j) => e.classList.toggle("active", j===i));
+    dots.forEach((d,j) => d.classList.toggle("active", j===i));
+    plIdx = i;
+
+    const entry = slides[i];
+    if (entry && entry.kind === "playlist" && entry.item.type === "video") {
+      const vid = document.getElementById(`pl-vid-${i}`);
+      if (vid) {
+        vid.play().catch(()=>{});
+        vid.onended = () => nextSlide();
+        plTimer = setTimeout(nextSlide, (entry.item.duration || 30) * 1000 + 10000);
+      }
+    } else {
+      const dur = (entry && entry.kind === "playlist") ? (entry.item.duration || 6) : (entry.duration || 8);
+      plTimer = setTimeout(nextSlide, dur * 1000);
+    }
+  }
+
+  function nextSlide() {
+    if (!plActive || slides.length === 0) return;
+    playSlide((plIdx + 1) % slides.length);
+  }
+
+  function startPlaylist() {
+    plActive = true;
+    if (slides.length > 0) playSlide(plIdx);
+  }
+
+  function stopPlaylist() {
+    plActive = false;
+    clearTimeout(plTimer);
+    document.querySelectorAll("#slides video").forEach(v => v.pause());
+  }
+
+  // ── DETECTION POLL ─────────────────────────────────────────────────────────
+  async function poll() {
+    try {
+      const d = await (await fetch("/status")).json();
+      // reload playlist when admin applies changes
+      if (lastPlaylistVersion !== null && d.playlist_version !== lastPlaylistVersion) {
+        lastPlaylistVersion = d.playlist_version;
+        stopPlaylist();
+        await loadPlaylist();
+        if (slides.length > 0) { plActive = true; playSlide(0); }
+      } else if (lastPlaylistVersion === null) {
+        lastPlaylistVersion = d.playlist_version;
+      }
+      const c = d.current;
+      if (c && c.detected_at !== lastDetectedAt) {
+        lastDetectedAt = c.detected_at;
+        showDetection(c);
+      } else if (!c) {
+        hideDetection();
+      }
+    } catch(e) {}
+    setTimeout(poll, 800);
+  }
+
+  function showDetection(c) {
+    document.getElementById("cust-name").textContent = c.customer_name || "—";
+    document.getElementById("dish-name").textContent = c.dish_name || "Sin pedido previo";
+    document.getElementById("dish-desc").textContent = c.dish_desc || "";
+
+    // Dish image
+    const dishImg = document.getElementById("dish-img");
+    const noImg   = document.getElementById("no-img");
+    if (c.dish_image) {
+      const fname = c.dish_image.replace(/\\/g,"/").split("/uploads/").pop();
+      dishImg.src = "/uploads/" + encodeURIComponent(fname);
+      dishImg.style.display = "block";
+      noImg.style.display = "none";
+    } else {
+      dishImg.style.display = "none";
+      noImg.style.display = "flex";
+    }
+
+    // Customer photo
+    const custPhoto = document.getElementById("cust-photo");
+    if (c.customer_face) {
+      custPhoto.src = "/uploads/faces/" + encodeURIComponent(c.customer_face);
+      custPhoto.style.display = "block";
+      custPhoto.onerror = () => { custPhoto.style.display = "none"; };
+    } else {
+      custPhoto.style.display = "none";
+    }
+
+    // Progress bar reset
+    const bar = document.getElementById("progress");
+    bar.style.animation = "none";
+    bar.offsetHeight;
+    bar.style.animation = "shrink 8s linear forwards";
+
+    stopPlaylist();
+    document.getElementById("idle").style.display = "none";
+    document.getElementById("detect").style.display = "block";
+    document.getElementById("demo-badge").style.display = "flex";
+  }
+
+  function hideDetection() {
+    if (document.getElementById("detect").style.display !== "none") {
+      document.getElementById("idle").style.display = "block";
+      document.getElementById("detect").style.display = "none";
+      document.getElementById("demo-badge").style.display = "none";
+      if (playlist.length > 0) startPlaylist();
+    }
+  }
+
+  async function init() {
+    await loadPlaylist();
+    // Always start cycling playlist immediately
+    if (slides.length > 0) {
+      plActive = true;
+      playSlide(0);
+    } else {
+      document.getElementById("idle-empty").style.display = "flex";
+    }
+    poll();
+  }
+
+  init();
+</script>
+</body>
+</html>

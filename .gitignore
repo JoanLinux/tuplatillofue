@@ -1,0 +1,10 @@
+tuplatillo.db
+uploads/faces/*
+uploads/dishes/*
+__pycache__/
+*.pyc
+*.pt
+*.onnx
+*.h5
+uploads/videos/*
+uploads/playlist/*.mp4
