@@ -1,86 +1,135 @@
-# TuPlatilloFue
+# TuPlatilloFue 🍽️
 
-Sistema de reconocimiento facial para restaurantes. Detecta clientes al pasar y muestra en pantalla su último platillo ordenado.
+Sistema de reconocimiento facial para restaurantes. Identifica clientes al llegar, muestra su platillo favorito en pantalla TV y gestiona pedidos — todo sin internet.
 
-## Flujo
+---
 
+## ¿Qué hace?
+
+| Pantalla | Función |
+|----------|---------|
+| `/pantalla` | TV del restaurante — muestra nombre del cliente + platillo favorito + playlist de imágenes/video |
+| `/admin` | Panel de administración — cámaras, clientes, platillos, pedidos |
+
+**Flujo:**
+1. Cliente entra → cámara lo detecta (YOLOv8 + InsightFace)
+2. Sistema lo reconoce por embedding facial
+3. Pantalla TV muestra bienvenida personalizada con su platillo favorito
+4. Admin registra el pedido
+
+---
+
+## Stack
+
+- **Python 3.10+** con Flask + Waitress
+- **YOLOv8n** — detección de personas (Ultralytics)
+- **InsightFace** (buffalo_sc) — reconocimiento facial por embeddings
+- **SQLite** — clientes, platillos, pedidos, playlist
+- **OpenCV** — captura de cámara / video
+- **100% offline** — modelos bundleados, sin llamadas a internet
+
+---
+
+## Instalación
+
+```bash
+# 1. Clonar
+git clone https://github.com/JoanLinux/tuplatillofue.git
+cd tuplatillofue
+
+# 2. Entorno virtual
+python -m venv venv
+venv\Scripts\activate      # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# 3. Dependencias
+pip install flask flask-cors waitress ultralytics insightface onnxruntime opencv-python numpy
+
+# 4. Modelos (descargar manualmente y colocar en models/)
+# - yolov8n.pt → raíz del proyecto
+# - InsightFace buffalo_sc → models/insightface/models/buffalo_sc/
+#   • det_500m.onnx
+#   • w600k_mbf.onnx
+# - DeepFace haarcascades → models/.deepface/weights/
 ```
-Cámara → YOLOv8 detecta persona → DeepFace identifica cara
-       → SQLite busca último platillo → Pantalla TV muestra imagen + nombre
-```
 
-## Accesos
+---
 
-| URL | Qué es |
-|-----|--------|
-| `http://localhost:5151/admin` | Panel de administración |
-| `http://localhost:5151/pantalla` | Pantalla TV (modo kiosco) |
-
-## Inicio rápido
+## Correr
 
 ```bat
 start.bat
 ```
 
-O manualmente:
+O directamente:
 
 ```bash
-..\.venv\Scripts\pip install deepface tf-keras
-..\.venv\Scripts\python.exe server.py
+python server.py
 ```
 
-## Dependencias principales
+Accesos:
+- **Admin:** http://localhost:5151/admin
+- **Pantalla TV:** http://localhost:5151/pantalla
 
-- `ultralytics` — detección de personas (YOLOv8)
-- `deepface` + `tf-keras` — reconocimiento facial (modelo Facenet)
-- `flask` + `waitress` — servidor web
-- `opencv-python` — captura de cámara
-- `sqlite3` — base de datos integrada (no requiere instalación)
+---
 
-## Uso
-
-### 1. Registrar platillos (tab Platillos)
-- Nombre, descripción y foto del platillo
-
-### 2. Registrar clientes (tab Clientes)
-- Nombre + foto frontal clara de la cara
-- El sistema extrae el embedding facial automáticamente
-
-### 3. Registrar pedidos (tab Pedidos)
-- Selecciona cliente + platillo → Guardar
-- El "último pedido" es lo que se mostrará en pantalla
-
-### 4. Iniciar detección
-- Ingresa fuente de cámara (`0` = webcam, `1` = segunda cámara, `rtsp://...` = IP cam)
-- Clic en **Iniciar**
-- La pantalla TV (`/pantalla`) se actualiza automáticamente al detectar un cliente
-
-## Ajustes de precisión
-
-En `server.py`:
-
-```python
-DETECT_INTERVAL = 15      # reconocimiento facial cada N frames (bajar = más frecuente)
-threshold = 0.75          # similitud mínima para reconocer (subir = más estricto)
-```
-
-## Estructura de archivos
+## Estructura
 
 ```
 tuplatillofue/
-├── server.py              # Backend Flask
+├── server.py              # Backend Flask + lógica de visión
 ├── start.bat              # Lanzador Windows
-├── tuplatillo.db          # SQLite (se crea al iniciar)
 ├── static/
 │   ├── admin.html         # Panel de administración
-│   └── pantalla.html      # Pantalla TV fullscreen
-└── uploads/
-    ├── faces/             # Fotos de clientes
-    └── dishes/            # Fotos de platillos
+│   └── pantalla.html      # Vista TV del restaurante
+├── uploads/
+│   ├── faces/             # Fotos de clientes (gitignored)
+│   ├── dishes/            # Fotos de platillos (gitignored)
+│   ├── playlist/          # Imágenes para slideshow
+│   └── videos/            # Videos para playlist (gitignored)
+├── models/
+│   ├── insightface/       # Modelos InsightFace (gitignored)
+│   └── .deepface/         # Haarcascades OpenCV
+└── tuplatillo.db          # Base de datos SQLite (gitignored)
 ```
 
-## Hardware recomendado
+---
 
-- GPU NVIDIA (CUDA) para inferencia rápida
-- Cámara a ~1-2m de altura, apuntando a la cara del cliente
-- TV/monitor secundario para la pantalla de atracción
+## Base de datos
+
+| Tabla | Descripción |
+|-------|-------------|
+| `customers` | Clientes registrados con embedding facial |
+| `dishes` | Platillos con foto y descripción |
+| `orders` | Historial de pedidos por cliente |
+| `playlist` | Imágenes/videos para la pantalla TV |
+
+---
+
+## API principales
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/video_feed` | Stream MJPEG de la cámara |
+| GET | `/status` | Estado del sistema (running, fps, cliente actual) |
+| POST | `/start` | Iniciar detección |
+| POST | `/stop` | Detener detección |
+| GET | `/api/customers` | Listar clientes |
+| POST | `/api/customers` | Registrar cliente + foto |
+| GET | `/api/dishes` | Listar platillos |
+| POST | `/api/dishes` | Agregar platillo |
+| GET | `/api/playlist` | Listar playlist |
+
+---
+
+## Requisitos de hardware
+
+- Cámara USB o IP (también acepta archivo de video para pruebas)
+- CPU moderna (Intel i5+ o equivalente) — no requiere GPU
+- ~500 MB RAM para modelos
+
+---
+
+## Proyecto relacionado
+
+- [YaLlegué](https://github.com/JoanLinux/yallegue) — checador de asistencia con la misma tecnología
